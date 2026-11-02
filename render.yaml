@@ -6,10 +6,12 @@ services:
     plan: free
     healthCheckPath: /health
     envVars:
+      # Capstone demo: staging + dev auth so evaluators can sign in as demo users.
+      # For real accounts use APP_ENV=production and AUTH_MODE=supabase (see deployment/environment_setup.md).
       - key: APP_ENV
-        value: production
+        value: staging
       - key: AUTH_MODE
-        value: supabase
+        value: dev
       - key: LLM_PROVIDER
         value: crewai
       - key: EMBEDDING_PROVIDER
@@ -18,8 +20,12 @@ services:
         sync: false
       - key: SUPABASE_URL
         sync: false
-      - key: SUPABASE_JWT_SECRET
+      - key: LLM_MODEL_DRAFT
         sync: false
+      - key: LLM_MODEL_REVIEW
+        sync: false
+      - key: GITLAB_URL
+        value: https://gitlab.com
       - key: GEMINI_API_KEY
         sync: false
       - key: GITLAB_PROJECT_ID

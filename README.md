@@ -111,6 +111,8 @@ Summary below; full reference with examples in [docs/api_documentation.md](docs/
 
 ## Run it locally
 
+Step-by-step team guide (VS Code + Claude, keys, Supabase, GitLab, deployment): see the shared build guide, and `CLAUDE.md` for project rules.
+
 Prerequisites: Python 3.11+, Node 20+.
 
 ```bash
