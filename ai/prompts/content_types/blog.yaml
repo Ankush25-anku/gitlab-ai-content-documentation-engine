@@ -1,0 +1,6 @@
+content_type: blog
+description: A developer-facing product blog post.
+required_headings: [Introduction, The problem, What we built, How it works, Try it, What's next]
+guidance: >
+  Open with the developer's problem, not the feature. Use one concrete example. Keep claims modest and
+  sourced. End with a call to action. 600-1100 words.

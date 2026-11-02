@@ -1,0 +1,9 @@
+scenario: docs_page
+key_facts:
+  - [Build, Pipelines]
+  - [Cache analytics]
+  - [Reporter]
+  - [partial hit, fallback_keys]
+  - [hit rate]
+forbidden:
+  - dramatically faster

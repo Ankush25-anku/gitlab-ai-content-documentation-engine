@@ -1,0 +1,6 @@
+channel: blog
+rules:
+  - "Conversational and developer-to-developer; \"we\" for GitLab, \"you\" for the reader."
+  - "Tell a short story: problem, approach, result."
+  - "Allowed to be enthusiastic, never to overstate capability."
+  - "Explain any acronym on first use."

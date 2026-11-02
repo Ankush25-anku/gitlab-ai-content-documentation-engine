@@ -1,0 +1,26 @@
+# Same checks as .github/workflows/ci.yml, for teams hosting the repo on GitLab.
+stages: [test, lint]
+
+backend-tests:
+  stage: test
+  image: python:3.12-slim
+  script:
+    - pip install -r requirements-dev.txt
+    - pytest -q
+    - python -m ai.evaluation.run_eval
+
+frontend-build:
+  stage: test
+  image: node:22
+  script:
+    - cd frontend && npm ci && npm run typecheck && npm run build
+
+# Lints exported docs the same way GitLab's own documentation pipeline does.
+docs-lint:
+  stage: lint
+  image:
+    name: jdkato/vale:latest
+    entrypoint: [""]
+  script:
+    - vale --minAlertLevel=warning data/sample_docs exports || true
+  allow_failure: true

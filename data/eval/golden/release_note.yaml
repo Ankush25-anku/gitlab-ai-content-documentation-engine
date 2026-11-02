@@ -1,0 +1,11 @@
+scenario: release_note
+key_facts:  # each is a set of words that must all appear (case-insensitive) in the draft
+  - [cache, hit rate, 30 days]
+  - [18.6]
+  - [Premium, Ultimate]
+  - [cache_stats]
+  - [cache_hits, deprecated, "19.0"]
+  - [ci_cache_analytics]
+forbidden:  # phrases that must never appear (unsupported claims)
+  - free for everyone
+  - dramatically faster

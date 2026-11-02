@@ -1,0 +1,5 @@
+extends: existence
+message: "Avoid '%s'; it judges how hard something is for the reader."
+level: warning
+ignorecase: true
+tokens: [simply, just, easily, easy, seamless, seamlessly]

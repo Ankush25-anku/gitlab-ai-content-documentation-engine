@@ -1,0 +1,45 @@
+# Demo scenarios used by scripts/seed_demo.py and ai/evaluation/run_eval.py.
+# All four come from one fictional feature so the outputs tell one coherent story.
+scenarios:
+  - id: release_note
+    title: Pipeline cache analytics
+    content_type: release_note
+    audience: Developers and platform engineers who maintain CI/CD pipelines
+    product_area: Verify
+    target_channel: release_notes
+    target_length: 300
+    inputs:
+      - {kind: mr, file: pipeline_cache_analytics/mr_description.md}
+      - {kind: release_notes, file: pipeline_cache_analytics/release_summary.md}
+  - id: docs_page
+    title: View cache analytics for a pipeline
+    content_type: docs_page
+    audience: Developers who maintain CI/CD pipelines
+    product_area: Verify
+    target_channel: docs
+    target_length: 600
+    inputs:
+      - {kind: mr, file: pipeline_cache_analytics/mr_description.md}
+      - {kind: issue, file: pipeline_cache_analytics/issue_discussion.md}
+  - id: blog
+    title: Stop guessing whether your CI cache works
+    content_type: blog
+    audience: Developers and DevOps engineers
+    product_area: Verify
+    target_channel: blog
+    target_length: 800
+    inputs:
+      - {kind: mr, file: pipeline_cache_analytics/mr_description.md}
+      - {kind: issue, file: pipeline_cache_analytics/issue_discussion.md}
+      - {kind: release_notes, file: pipeline_cache_analytics/release_summary.md}
+  - id: api_reference
+    title: Pipeline cache statistics API
+    content_type: api_reference
+    audience: Developers who automate GitLab with the REST API
+    product_area: Verify
+    target_channel: api_reference
+    target_length: 500
+    inputs:
+      - {kind: diff, file: pipeline_cache_analytics/cache_stats.diff}
+      - {kind: api_spec, file: pipeline_cache_analytics/openapi_cache_stats.yaml}
+      - {kind: mr, file: pipeline_cache_analytics/mr_description.md}

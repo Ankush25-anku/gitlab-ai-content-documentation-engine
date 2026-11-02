@@ -1,0 +1,5 @@
+channel: api_reference
+rules:
+  - "Terse and exact. Fragments are fine in tables."
+  - "No narrative, no opinions, no marketing."
+  - "Always state types, defaults and whether a parameter is required."

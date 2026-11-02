@@ -1,0 +1,6 @@
+content_type: onboarding_guide
+description: A guide that takes a new user or team from zero to a first success.
+required_headings: [Who this guide is for, Before you begin, Step-by-step setup, Verify it works, Next steps]
+guidance: >
+  Assume no prior context. Each step has one action and one expected result.
+  Mark anything that changed since the last version of the guide. 500-1000 words.

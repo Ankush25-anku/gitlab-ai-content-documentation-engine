@@ -1,0 +1,30 @@
+# Render blueprint for the backend. Secrets are set in the Render dashboard, never here.
+services:
+  - type: web
+    name: content-engine-api
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: AUTH_MODE
+        value: supabase
+      - key: LLM_PROVIDER
+        value: crewai
+      - key: EMBEDDING_PROVIDER
+        value: gemini
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GITLAB_PROJECT_ID
+        sync: false
+      - key: GITLAB_TOKEN
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false

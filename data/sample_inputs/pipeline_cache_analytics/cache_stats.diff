@@ -1,0 +1,32 @@
+diff --git a/lib/api/ci/pipelines.rb b/lib/api/ci/pipelines.rb
+index 3f1a2b9..8c4d7e1 100644
+--- a/lib/api/ci/pipelines.rb
++++ b/lib/api/ci/pipelines.rb
+@@ -210,6 +210,28 @@ module API
++        desc 'Get cache statistics for a pipeline' do
++          detail 'Introduced in GitLab 18.6. Requires the Reporter role.'
++          success Entities::Ci::PipelineCacheStats
++        end
++        params do
++          requires :pipeline_id, type: Integer, desc: 'The pipeline ID'
++          optional :job_name, type: String, desc: 'Return statistics for one job only'
++          optional :include_misses, type: Boolean, default: true, desc: 'Include the list of jobs with cache misses'
++        end
++        get ':id/pipelines/:pipeline_id/cache_stats' do
++          authorize! :read_pipeline_cache_stats, user_project
++          pipeline = user_project.all_pipelines.find(params[:pipeline_id])
++          present pipeline.cache_stats(job_name: params[:job_name], include_misses: params[:include_misses]),
++                  with: Entities::Ci::PipelineCacheStats
++        end
+diff --git a/app/models/ci/pipeline_cache_stats.rb b/app/models/ci/pipeline_cache_stats.rb
+new file mode 100644
+--- /dev/null
++++ b/app/models/ci/pipeline_cache_stats.rb
+@@ -0,0 +1,14 @@
++# Hit rate is the share of cache restores that found an exact key match.
++# A partial hit is a restore that used a fallback key from cache:fallback_keys.
++module Ci
++  class PipelineCacheStats
++    attr_reader :hit_rate, :hits, :partial_hits, :misses, :jobs_with_misses
++  end
++end

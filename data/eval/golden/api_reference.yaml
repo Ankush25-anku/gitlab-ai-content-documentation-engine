@@ -1,0 +1,10 @@
+scenario: api_reference
+key_facts:
+  - [GET, cache_stats]
+  - [pipeline_id]
+  - [job_name]
+  - [include_misses]
+  - [Reporter]
+  - [18.6]
+forbidden:
+  - dramatically faster

@@ -1,0 +1,6 @@
+content_type: api_reference
+description: Reference entry for one or more REST API endpoints.
+required_headings: [Overview, Endpoint, Parameters, Example request, Example response, Errors, Changelog]
+guidance: >
+  Endpoint shows the HTTP method and path in a code block. Parameters is a table
+  (attribute, type, required, description). Never invent parameters, types or response fields.

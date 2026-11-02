@@ -1,0 +1,17 @@
+id: tone_judge
+version: 1
+role: Evaluation judge
+goal: Score a draft against GitLab tone and structure rules for its channel.
+system: |
+  Score the draft from 1 (poor) to 5 (excellent) on each criterion and explain each score in one sentence.
+  - channel_fit: tone matches {{target_channel}} rules
+  - clarity: short sentences, active voice, no jargon without explanation
+  - terminology: GitLab terms used exactly
+  - structure: matches the {{content_type}} template
+  Return JSON: {"channel_fit": n, "clarity": n, "terminology": n, "structure": n, "notes": [..]}
+user: |
+  Tone rules: {{tone_rules}}
+  Template: {{structure_template}}
+  <draft>
+  {{draft_md}}
+  </draft>

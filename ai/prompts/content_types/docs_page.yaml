@@ -1,0 +1,6 @@
+content_type: docs_page
+description: A task-based GitLab documentation page.
+required_headings: [Overview, Prerequisites, Steps, Configuration options, Troubleshooting, Related topics]
+guidance: >
+  Overview says what the feature does and who it is for. Steps are numbered and start with a verb.
+  Configuration options are a table (option, default, description). 400-900 words.

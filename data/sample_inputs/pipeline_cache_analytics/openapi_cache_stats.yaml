@@ -1,0 +1,37 @@
+# OpenAPI excerpt for the new endpoint (fictional, for the capstone demo)
+paths:
+  /projects/{id}/pipelines/{pipeline_id}/cache_stats:
+    get:
+      summary: Get cache statistics for a pipeline
+      description: Returns the cache hit rate and counts for one pipeline. Introduced in GitLab 18.6.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The ID or URL-encoded path of the project
+          schema: {type: string}
+        - name: pipeline_id
+          in: path
+          required: true
+          description: The ID of the pipeline
+          schema: {type: integer}
+        - name: job_name
+          in: query
+          required: false
+          description: Return statistics for one job only
+          schema: {type: string}
+        - name: include_misses
+          in: query
+          required: false
+          description: Include the list of jobs with cache misses. The include_misses parameter defaults to true.
+          schema: {type: boolean, default: true}
+      responses:
+        "200":
+          description: Cache statistics. The response contains "hit_rate", "hits", "partial_hits", "misses" and "jobs_with_misses".
+          content:
+            application/json:
+              example: {"hit_rate": 0.82, "hits": 41, "partial_hits": 3, "misses": 6, "jobs_with_misses": ["rspec 2/4", "build-assets"]}
+        "403":
+          description: The user does not have the Reporter role in the project. Returns 403 Forbidden.
+        "404":
+          description: The project or pipeline does not exist. Returns 404 Not Found.

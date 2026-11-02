@@ -1,0 +1,9 @@
+scenario: blog
+key_facts:
+  - [slow, cache]
+  - [hit rate]
+  - [18.6]
+  - [cache_stats]
+forbidden:
+  - dramatically faster
+  - free for everyone

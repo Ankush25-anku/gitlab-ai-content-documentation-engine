@@ -1,0 +1,33 @@
+# GitLab terminology used by the Tone Optimizer and Context Reader.
+# term: the exact form to use. avoid: variants to replace.
+terms:
+  - {term: merge request, avoid: [pull request, PR, merge-request]}
+  - {term: GitLab Runner, avoid: [gitlab runner, Gitlab Runner, CI runner agent]}
+  - {term: CI/CD pipeline, avoid: [CI pipeline build, build pipeline]}
+  - {term: .gitlab-ci.yml, avoid: [gitlab-ci.yaml, gitlab ci file]}
+  - {term: project, avoid: [repo project]}
+  - {term: group, avoid: [organisation group]}
+  - {term: personal access token, avoid: [PAT, personal token]}
+  - {term: project access token, avoid: [project token]}
+  - {term: GitLab Self-Managed, avoid: [self-hosted GitLab, on-prem GitLab]}
+  - {term: GitLab.com, avoid: [gitlab.com SaaS, GitLab SaaS]}
+  - {term: GitLab Dedicated, avoid: [dedicated GitLab]}
+  - {term: feature flag, avoid: [feature toggle, FF]}
+  - {term: deprecated, avoid: [sunset, retired]}
+  - {term: job artifacts, avoid: [build artifacts, job artefacts]}
+  - {term: cache key, avoid: [cache-key, cachekey]}
+  - {term: merge train, avoid: [merge queue]}
+  - {term: protected branch, avoid: [locked branch]}
+  - {term: issue, avoid: [ticket]}
+  - {term: epic, avoid: [initiative]}
+  - {term: two-factor authentication, avoid: [2FA, two factor auth]}
+  - {term: allowlist, avoid: [whitelist]}
+  - {term: denylist, avoid: [blacklist]}
+  - {term: select, avoid: [click on, click]}
+  - {term: Premium, avoid: [premium tier]}
+  - {term: Ultimate, avoid: [ultimate tier]}
+  - {term: REST API, avoid: [rest api, Rest API]}
+  - {term: GraphQL API, avoid: [graphql api]}
+  - {term: endpoint, avoid: [end-point, end point]}
+  - {term: pipeline schedule, avoid: [scheduled build]}
+marketing_words: [simply, just, easily, easy, seamless, seamlessly, powerful, revolutionary, blazing, best-in-class, game-changing, effortless, effortlessly]

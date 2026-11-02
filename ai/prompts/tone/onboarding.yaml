@@ -1,0 +1,5 @@
+channel: onboarding
+rules:
+  - "Warm and encouraging, but brief."
+  - "Assume no prior knowledge; define terms on first use."
+  - "Every step ends with what the user should see."

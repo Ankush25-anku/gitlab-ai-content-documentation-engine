@@ -1,0 +1,7 @@
+frontend
+tests
+docs
+.git
+*.db
+exports
+__pycache__

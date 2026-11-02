@@ -1,0 +1,10 @@
+extends: substitution
+message: "Use '%s' instead of '%s'."
+level: error
+ignorecase: true
+swap:
+  pull request: merge request
+  whitelist: allowlist
+  blacklist: denylist
+  click on: select
+  self-hosted GitLab: GitLab Self-Managed

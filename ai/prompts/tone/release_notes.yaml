@@ -1,0 +1,6 @@
+channel: release_notes
+rules:
+  - "Lead with the user benefit, then the detail."
+  - "Confident but factual; no superlatives."
+  - "Past or present tense for what shipped, never future tense for unshipped work."
+  - "Label breaking changes and deprecations explicitly."

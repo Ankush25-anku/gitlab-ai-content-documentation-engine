@@ -1,0 +1,6 @@
+content_type: release_note
+description: One release-post entry for a single change.
+required_headings: [Overview, What's new, Who it affects, How to get started, Related links]
+guidance: >
+  Lead with the user benefit in one sentence. Name the tier and the GitLab version if a source gives them.
+  Breaking changes and deprecations go first, clearly labelled. 150-350 words.

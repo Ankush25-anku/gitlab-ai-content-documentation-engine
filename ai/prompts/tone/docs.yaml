@@ -1,0 +1,6 @@
+channel: docs
+rules:
+  - "Neutral, direct, task-focused. Second person for instructions."
+  - "No marketing words (powerful, seamless, revolutionary, simply, just, easy)."
+  - "Present tense. Active voice. One idea per sentence."
+  - "Use \"select\" for UI actions, not \"click\"."
