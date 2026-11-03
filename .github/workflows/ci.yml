@@ -12,7 +12,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - run: pip install -r requirements-dev.txt
-      - run: ruff check backend ai tests --select E,F --ignore E501
+      - run: ruff check backend ai tests scripts --select E,F --ignore E501
       - run: pytest -q
       - run: python -m ai.evaluation.run_eval
 
