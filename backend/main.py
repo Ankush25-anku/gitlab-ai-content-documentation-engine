@@ -5,6 +5,7 @@ API docs:     http://localhost:8000/docs
 """
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,6 +18,7 @@ from backend.config import get_settings
 from backend.database.models import KBChunk
 from backend.database.session import init_db, new_session
 from backend.orchestration.runner import sync_prompts
+from backend.services.audit import log
 from backend.services.errors import AppError, app_error_handler
 
 
@@ -32,7 +34,14 @@ async def lifespan(_: FastAPI):
             ensure_demo_users(db)
         if db.scalar(select(func.count()).select_from(KBChunk)) == 0:
             from ai.retrieval.ingest import ingest_all
-            ingest_all(db)
+            try:
+                ingest_all(db)
+            except httpx.HTTPError as exc:
+                # Embedding API still busy after retries: serve without the KB rather than crash.
+                db.rollback()
+                log.warning("kb.ingest_failed", error=str(exc)[:300],
+                            hint="Retrieval is empty. Rebuild it with: python -m ai.retrieval.ingest --reset "
+                                 "(or restart the server; ingest runs again while the KB is empty).")
     yield
 
 

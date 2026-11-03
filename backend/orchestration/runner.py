@@ -113,6 +113,15 @@ def _copy_claims(db: Session, src: DraftRow, dst: DraftRow) -> None:
     db.commit()
 
 
+def _busy_notice(db: Session, job: ContentJob, stage: str):
+    """Show "AI service busy, retrying…" on a running job. The next set_status clears it."""
+    def notify(message: str) -> None:
+        job.last_error = {"code": "MODEL_BUSY", "stage": stage, "message": message, "retryable": True}
+        audit(db, "workflow.model_busy", None, job.id, stage=stage, message=message)
+        db.commit()
+    return agent_base.busy_notifications(notify)
+
+
 def _fail(db: Session, job: ContentJob, stage: str, exc: Exception) -> None:
     db.rollback()
     db.add(AgentRun(job_id=job.id, stage=stage, model="-", status="failed", error=str(exc)[:2000],
@@ -140,7 +149,8 @@ def prepare_context(db: Session, job: ContentJob, actor: str | None = None,
     try:
         if simulate_failure == "context":
             raise SimulatedFailure("Simulated model timeout in context stage (demo/test).")
-        result = context_reader.run(sources, job_dict(job))
+        with _busy_notice(db, job, "context"):
+            result = context_reader.run(sources, job_dict(job))
     except agent_base.AgentError as exc:
         _fail(db, job, "context", exc)
         raise AppError("MODEL_FAILED", str(exc), job.id) from exc
@@ -237,7 +247,8 @@ def run_workflow(db: Session, job_id: str, from_stage: str = "context", stages: 
         try:
             if simulate_failure == stage:
                 raise SimulatedFailure(f"Simulated model timeout in {stage} stage (demo/test).")
-            _run_stage(db, job, stage, pack, sources, instructions, prompt_versions)
+            with _busy_notice(db, job, stage):
+                _run_stage(db, job, stage, pack, sources, instructions, prompt_versions)
         except agent_base.AgentError as exc:
             _fail(db, job, stage, exc)
             return
@@ -257,8 +268,9 @@ def prepare_publish(db: Session, job: ContentJob, actor: str) -> PublishPackage:
     approvers = [p.name for p in (db.get(Profile, a) for a in set(approver_ids)) if p]
     set_status(db, job, "PUBLISH_PREPARING", stage="publish_prep", actor=actor)
     try:
-        result = publishing_coordinator.run(Draft.model_validate(row.draft_json), sources_of(pack_row),
-                                            job_dict(job), owner.name if owner else job.owner_id, approvers)
+        with _busy_notice(db, job, "publish_prep"):
+            result = publishing_coordinator.run(Draft.model_validate(row.draft_json), sources_of(pack_row),
+                                                job_dict(job), owner.name if owner else job.owner_id, approvers)
     except agent_base.AgentError as exc:
         _fail(db, job, "publish_prep", exc)
         raise AppError("MODEL_FAILED", str(exc), job.id) from exc

@@ -11,6 +11,7 @@ DATA = ROOT / "data" / "sample_inputs"
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("DATABASE_URL", "sqlite://")
     monkeypatch.setenv("LLM_PROVIDER", "mock")
+    monkeypatch.setenv("EMBEDDING_PROVIDER", "hash")  # never call the Gemini API from tests, whatever .env says
     monkeypatch.setenv("AUTH_MODE", "dev")
     monkeypatch.setenv("APP_ENV", "test")
     monkeypatch.setenv("MOCK_LATENCY_MS", "0")
