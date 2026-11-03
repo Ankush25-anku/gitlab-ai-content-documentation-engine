@@ -8,7 +8,8 @@ import re
 
 from ai.agents.base import AgentResult, AgentSpec, run_agent
 from ai.schemas import ClaimCheck, ContextPack, Draft, ReviewReport, Section, SourceRef, TechReviewOutput
-from ai.text_utils import NEEDS_SOURCE_RE, citations, is_checkable, overlap, plain_text, split_sentences
+from ai.text_utils import (NEEDS_SOURCE_RE, citations, is_checkable, normalise_citations, normalise_draft, overlap,
+                           plain_text, split_sentences)
 
 SPEC = AgentSpec(name="technical_reviewer", stage="tech_review", output_model=TechReviewOutput,
                  model_setting="llm_model_review")
@@ -50,6 +51,7 @@ def check_claim(sentence: str, sources: dict[str, SourceRef]) -> ClaimCheck:
 
 
 def _apply_citation_fixes(body: str, checks: list[ClaimCheck]) -> str:
+    body = normalise_citations(body, known_ids=())  # so "[S9]" can be removed even from "[S1, S9]"
     for chk in checks:
         if chk.verdict == "partial" and chk.fix and chk.fix.startswith("Cite [") and chk.source_ids:
             idx = body.find(chk.claim)
@@ -102,12 +104,15 @@ def mock_review(draft: Draft, sources: list[SourceRef]) -> TechReviewOutput:
 
 
 def run(draft: Draft, pack: ContextPack, sources: list[SourceRef], prompt_version: int | None = None) -> AgentResult:
+    valid_ids = {s.id for s in sources}
+    draft = normalise_draft(draft, valid_ids)  # drafts stored before citations were normalised may be grouped
     facts = [{"source_id": s.id, "title": s.title, "text": s.text} for s in sources]
     variables = {"facts_json": json.dumps(facts, indent=1), "draft_json": draft.model_dump_json(indent=1)}
-    result = run_agent(SPEC, variables, lambda: mock_review(draft, sources), prompt_version)
+    result = run_agent(SPEC, variables, lambda: mock_review(draft, sources), prompt_version,
+                       known_source_ids=valid_ids)
     # Defence in depth: whatever the model says, recheck citations deterministically.
+    # (run_agent already split grouped source_ids such as ["S1, S2"], which used to fail this check.)
     out: TechReviewOutput = result.output
-    valid_ids = {s.id for s in sources}
     for chk in out.report.claims:
         bad = [c for c in chk.source_ids if c not in valid_ids]
         if bad and chk.verdict == "supported":

@@ -1,9 +1,19 @@
 """Small, dependency-free text helpers shared by agents, retrieval and evaluation."""
 import re
+from collections.abc import Collection
+
+from pydantic import BaseModel
 
 from ai.schemas import Draft
 
-CITATION_RE = re.compile(r"\[(S\d+)\]")
+# Separators models put between ids inside one marker: "S1, S2", "S1,S2", "S1; S2", "S1 and S2", "S1, and S2", "S1 & S2".
+_ID_SEP = r"(?:\s*[,;&]\s*(?:and\s+)?|\s+and\s+)"
+_ID_LIST = rf"S\d+(?:{_ID_SEP}S\d+)*"
+# One citation marker: canonical "[S1]" or a grouped "[S1, S2]". Every helper below accepts both.
+CITATION_RE = re.compile(rf"\[\s*({_ID_LIST})\s*\]")
+_PAREN_CITATION_RE = re.compile(rf"\(\s*({_ID_LIST})\s*\)")
+_ID_RE = re.compile(r"S\d+")
+_CODE_RE = re.compile(r"(```.*?```|`[^`\n]*`)", re.S)
 NEEDS_SOURCE_RE = re.compile(r"\[NEEDS SOURCE:[^\]]*\]")
 INJECTION_RE = re.compile(
     r"(ignore (all |any )?(previous|prior|above) instructions|disregard (the|all) (rules|instructions)|"
@@ -59,7 +69,70 @@ def plain_text(sentence: str) -> str:
 
 
 def citations(text: str) -> list[str]:
-    return CITATION_RE.findall(text)
+    """Every cited id in order, including each id inside a grouped marker such as [S1, S2]."""
+    return [sid for m in CITATION_RE.finditer(text) for sid in _ID_RE.findall(m.group(1))]
+
+
+def strip_citations(text: str) -> str:
+    """Remove citation markers (single or grouped) and the space before them."""
+    return re.sub(r"\s?" + CITATION_RE.pattern, "", text)
+
+
+def _canonical(match: re.Match) -> str:
+    return " ".join(f"[{sid}]" for sid in dict.fromkeys(_ID_RE.findall(match.group(1))))
+
+
+def normalise_citations(text: str, known_ids: Collection[str] | None = None) -> str:
+    """Rewrite grouped citations into one id per bracket: "[S1, S2]", "[S1;S2]", "[S1 and S2]" -> "[S1] [S2]".
+
+    "(S1)" and "(S1, S2)" are rewritten too, but only when every id in them is in `known_ids` (when given),
+    so prose such as "object storage (S3)" is left alone. Code spans and fenced code blocks are never changed.
+    """
+    def paren(m: re.Match) -> str:
+        ids = _ID_RE.findall(m.group(1))
+        return _canonical(m) if known_ids is None or all(i in known_ids for i in ids) else m.group(0)
+
+    parts = _CODE_RE.split(text)
+    for i in range(0, len(parts), 2):  # even indexes are outside code
+        parts[i] = _PAREN_CITATION_RE.sub(paren, CITATION_RE.sub(_canonical, parts[i]))
+    return "".join(parts)
+
+
+def normalise_source_ids(values: list[str]) -> list[str]:
+    """Split entries such as "S1, S2" or "[S3]" into separate ids, keeping order and dropping duplicates."""
+    out: list[str] = []
+    for value in values:
+        core = value.strip(" []()")
+        out += _ID_RE.findall(core) if re.fullmatch(_ID_LIST, core) else [value]
+    return list(dict.fromkeys(out))
+
+
+def normalise_draft(draft: Draft, known_ids: Collection[str] | None = None) -> Draft:
+    sections = [s.model_copy(update={"body_markdown": normalise_citations(s.body_markdown, known_ids),
+                                     "source_ids": normalise_source_ids(s.source_ids)}) for s in draft.sections]
+    return draft.model_copy(update={"summary": normalise_citations(draft.summary, known_ids), "sections": sections})
+
+
+def normalise_output(obj, known_ids: Collection[str] | None = None):
+    """Canonical citations in every Draft inside an agent output, and split ids in every `source_ids` list."""
+    if isinstance(obj, Draft):
+        return normalise_draft(obj, known_ids)
+    if not isinstance(obj, BaseModel):
+        return obj
+    updates = {}
+    for name in type(obj).model_fields:
+        value = getattr(obj, name)
+        if name == "source_ids" and isinstance(value, list):
+            new = normalise_source_ids(value)
+        elif isinstance(value, BaseModel):
+            new = normalise_output(value, known_ids)
+        elif isinstance(value, list) and value and isinstance(value[0], BaseModel):
+            new = [normalise_output(v, known_ids) for v in value]
+        else:
+            continue
+        if new != value:
+            updates[name] = new
+    return obj.model_copy(update=updates) if updates else obj
 
 
 def is_checkable(sentence: str) -> bool:
@@ -74,7 +147,7 @@ def draft_to_markdown(draft: Draft, include_citations: bool = True) -> str:
         parts += [f"## {s.heading}", "", s.body_markdown.strip(), ""]
     md = "\n".join(parts).strip() + "\n"
     if not include_citations:
-        md = re.sub(r"\s?\[S\d+\]", "", md)
+        md = strip_citations(md)
     return md
 
 
@@ -96,7 +169,8 @@ def markdown_to_draft(md: str, base: Draft) -> Draft:
             current[1].append(line)
     built = []
     for heading, lines in sections:
-        body = "\n".join(lines).strip()
+        # Human edits: canonicalise bracket groups only; "(S3)" typed by a person stays prose.
+        body = normalise_citations("\n".join(lines).strip(), known_ids=())
         built.append(Section(heading=heading, body_markdown=body,
                              source_ids=sorted(set(citations(body)), key=lambda x: int(x[1:]))))
     return base.model_copy(update={"title": title, "summary": "\n".join(summary_lines).strip() or base.summary,

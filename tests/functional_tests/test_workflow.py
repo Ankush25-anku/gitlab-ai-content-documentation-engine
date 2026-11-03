@@ -12,7 +12,7 @@ def test_full_workflow_reaches_review_with_all_stages(client):
     stages = [r["stage"] for r in job["runs"]]
     assert stages == ["context", "draft", "tech_review", "tone", "structure", "quality"]
     assert all(r["status"] == "succeeded" for r in job["runs"])
-    assert job["runs"][1]["prompt_version"] == "documentation_writer@v2"
+    assert job["runs"][1]["prompt_version"] == "documentation_writer@v3"  # newest version is the default
     draft = job["latest_draft"]
     assert draft["version"] == 4  # draft, tech_review, tone, structure
     assert draft["quality_scores"]["structure_compliance"] == 1.0
@@ -85,7 +85,7 @@ def test_export_cms_json_and_metrics(client):
     m = client.get("/api/metrics", headers=auth("doc_lead")).json()
     assert m["totals"]["exported"] == 1
     assert m["quality"]["avg_overall"] is not None
-    assert "documentation_writer@v2" in m["quality_by_writer_prompt"]
+    assert "documentation_writer@v3" in m["quality_by_writer_prompt"]
 
 
 def test_gitlab_export_without_config_fails_visibly(client):

@@ -69,7 +69,7 @@ def test_crewai_wiring_builds_a_single_task_crew(monkeypatch):
                               "draft_json": '{"a": {"b": 1}}', "instructions": "none"}, mock=lambda: None)
     get_settings.cache_clear()
     assert result.output == expected
-    assert result.prompt.id == "tone_optimizer@v1"
+    assert result.prompt.id == "tone_optimizer@v2"
     task = captured["tasks"][0]
     assert task.output_pydantic is Draft
     assert task.agent.max_iter == 1 and task.agent.max_retry_limit == 0  # one attempt = one request
