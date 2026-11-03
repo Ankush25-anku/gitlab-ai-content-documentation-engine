@@ -52,6 +52,7 @@ def test_crewai_wiring_builds_a_single_task_crew(monkeypatch):
     import crewai
     from crewai.crews.crew_output import CrewOutput
 
+    from ai.agents import base
     from ai.agents.base import AgentSpec, run_agent
     captured = {}
     expected = Draft(title="T", summary="S", sections=[Section(heading="Overview", body_markdown="x [S1].")])
@@ -70,5 +71,8 @@ def test_crewai_wiring_builds_a_single_task_crew(monkeypatch):
     assert result.prompt.id == "tone_optimizer@v1"
     task = captured["tasks"][0]
     assert task.output_pydantic is Draft
+    assert task.agent.max_iter == 1 and task.agent.max_retry_limit == 0  # one attempt = one request
+    from crewai.hooks import get_before_llm_call_hooks
+    assert base._pace_llm_call in get_before_llm_call_hooks()  # rate limiter sees every LLM request
     assert '{"a": {"b": 1}}' in task.description  # JSON braces survive (no input interpolation)
     assert captured["inputs"] is None

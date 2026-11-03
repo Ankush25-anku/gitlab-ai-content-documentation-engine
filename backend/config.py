@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     embedding_model: str = "gemini-embedding-001"
     embedding_dim: int = 768
     llm_max_retries: int = 2
+    llm_requests_per_minute: int = 4  # process-wide pacing of real LLM calls (Gemini free tier allows 5); 0 = off
     mock_latency_ms: int = 900  # mock mode only: simulated thinking time so the live workflow view is watchable
 
     # Retrieval
