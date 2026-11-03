@@ -4,10 +4,12 @@ Turn GitLab code changes, merge requests and API specs into **source-grounded, h
 
 | | |
 |---|---|
-| **Live app** | `https://<your-app>.vercel.app` ← replace before submission |
-| **API** | `https://<your-api>.onrender.com/docs` ← replace |
+| **Live app** | [gitlab-ai-content-documentation-eng.vercel.app](https://gitlab-ai-content-documentation-eng.vercel.app) |
+| **API** | [content-engine-api-76k0.onrender.com](https://content-engine-api-76k0.onrender.com) · interactive docs at [/docs](https://content-engine-api-76k0.onrender.com/docs) |
 | **Demo video** | `https://drive.google.com/...` ← "Anyone with the link can view" |
 | **Capstone brief** | [AlmaBetter: GitLab AI Content & Documentation Engine](https://almabetter.notion.site/GitLab-AI-Content-Documentation-Engine-38a1a19a561781efb1b3e7f00da7c01c) |
+
+> **Note:** the backend runs on Render's free plan, which sleeps when idle. The first request after a quiet period takes about a minute while it wakes up; after that the app responds normally. If the live app looks stuck on first load, open the [API docs](https://content-engine-api-76k0.onrender.com/docs) once to wake it, then reload.
 
 ![Draft editor with source panel and review](docs/screenshots/draft-review.png)
 
