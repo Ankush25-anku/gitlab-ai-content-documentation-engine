@@ -1,6 +1,6 @@
 # Evaluation report
 
-Generated 2026-11-02 with `LLM_PROVIDER=mock` by `python -m ai.evaluation.run_eval`.
+Generated 2026-11-03 with `LLM_PROVIDER=mock` by `python -m ai.evaluation.run_eval`.
 
 Each scenario is run twice on the same inputs: a one-shot baseline (one writer call, prompt v1, no review stages) and the full multi-agent workflow. Key-fact recall is graded against `data/eval/golden/`.
 
