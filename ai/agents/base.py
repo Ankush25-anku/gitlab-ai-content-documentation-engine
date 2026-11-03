@@ -20,11 +20,13 @@ import time
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
+from collections.abc import Collection
 from typing import Any, Callable, Iterator
 
 from pydantic import BaseModel
 
 from ai.prompts.loader import PromptTemplate, load_prompt
+from ai.text_utils import normalise_output
 from backend.config import get_settings
 
 # Waits before each retry when the model is overloaded (503) or rate limited (429).
@@ -186,7 +188,9 @@ def _estimate_tokens(text: str) -> int:
 
 
 def run_agent(spec: AgentSpec, variables: dict[str, Any], mock: Callable[[], BaseModel],
-              prompt_version: int | None = None) -> AgentResult:
+              prompt_version: int | None = None, known_source_ids: Collection[str] | None = None) -> AgentResult:
+    """`known_source_ids`: the citation ids valid for this job; "(S1)" in output only counts as a citation
+    when it names one of them (None = treat every "(S#)" as a citation)."""
     settings = get_settings()
     prompt = load_prompt(spec.name, prompt_version)
     system, user = prompt.render(**variables)
@@ -202,6 +206,8 @@ def run_agent(spec: AgentSpec, variables: dict[str, Any], mock: Callable[[], Bas
     else:
         result = _run_crewai(spec, prompt, system, user, variables, settings)
 
+    # Models often group citations ("[S1, S2]"); store every draft in the canonical "[S1] [S2]" form.
+    result.output = normalise_output(result.output, known_source_ids)
     result.latency_ms = int((time.perf_counter() - started) * 1000)
     return result
 

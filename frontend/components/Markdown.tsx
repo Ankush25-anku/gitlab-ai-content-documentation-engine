@@ -5,7 +5,11 @@ import { Fragment, ReactNode } from "react";
 /**
  * Small, safe Markdown renderer for drafts (no raw HTML is ever injected).
  * Renders [S#] citations as clickable markers and [NEEDS SOURCE: ...] as a highlighted gap.
+ * Grouped markers such as [S1, S2] or [S1 and S2] render as one marker per id (same rule as ai/text_utils.py).
  */
+const CITE = String.raw`\[\s*S\d+(?:(?:\s*[,;&]\s*(?:and\s+)?|\s+and\s+)S\d+)*\s*\]`;
+const CITE_TOKEN = new RegExp(`^${CITE}$`);
+const CITE_STRIP = new RegExp(String.raw`\s?` + CITE, "g");
 interface Props {
   markdown: string;
   validIds?: Set<string>;
@@ -16,7 +20,7 @@ interface Props {
 
 function inline(text: string, p: Props, key: string): ReactNode[] {
   const out: ReactNode[] = [];
-  const re = /(`[^`]+`|\[S\d+\]|\[NEEDS SOURCE:[^\]]*\]|\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g;
+  const re = new RegExp(String.raw`(` + "`[^`]+`|" + CITE + String.raw`|\[NEEDS SOURCE:[^\]]*\]|\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))`, "g");
   let last = 0;
   let m: RegExpExecArray | null;
   let i = 0;
@@ -25,12 +29,15 @@ function inline(text: string, p: Props, key: string): ReactNode[] {
     const tok = m[0];
     const k = `${key}-${i++}`;
     if (tok.startsWith("`")) out.push(<code key={k}>{tok.slice(1, -1)}</code>);
-    else if (/^\[S\d+\]$/.test(tok)) {
-      const id = tok.slice(1, -1);
-      out.push(
-        <button key={k} type="button" className="cite" data-active={p.activeId === id}
-          data-invalid={p.validIds ? !p.validIds.has(id) : false}
-          onClick={() => p.onCite?.(id)} aria-label={`Show source ${id}`}>{id}</button>);
+    else if (CITE_TOKEN.test(tok)) {
+      const ids = [...new Set(tok.match(/S\d+/g) ?? [])];
+      ids.forEach((id, j) => {
+        if (j > 0) out.push(" ");
+        out.push(
+          <button key={`${k}-${id}`} type="button" className="cite" data-active={p.activeId === id}
+            data-invalid={p.validIds ? !p.validIds.has(id) : false}
+            onClick={() => p.onCite?.(id)} aria-label={`Show source ${id}`}>{id}</button>);
+      });
     } else if (tok.startsWith("[NEEDS SOURCE")) out.push(<span key={k} className="needs">{tok.slice(1, -1)}</span>);
     else if (tok.startsWith("**")) out.push(<strong key={k}>{tok.slice(2, -2)}</strong>);
     else {
@@ -46,7 +53,7 @@ function inline(text: string, p: Props, key: string): ReactNode[] {
 
 function sentenceAware(text: string, p: Props, key: string): ReactNode {
   if (!p.flagged?.length) return inline(text, p, key);
-  const plain = (s: string) => s.replace(/\s?\[S\d+\]/g, "").replace(/\s+([.,;:!?])/g, "$1").trim();
+  const plain = (s: string) => s.replace(CITE_STRIP, "").replace(/\s+([.,;:!?])/g, "$1").trim();
   const parts = text.split(/(?<=[.!?])\s+/);
   return parts.map((s, i) => {
     const hit = p.flagged!.some((f) => plain(s) === f.trim());

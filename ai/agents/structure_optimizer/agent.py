@@ -4,6 +4,7 @@ import re
 from ai.agents.base import AgentResult, AgentSpec, run_agent
 from ai.prompts.loader import content_type_template
 from ai.schemas import Draft, Section
+from ai.text_utils import citations, draft_to_markdown
 
 SPEC = AgentSpec(name="structure_optimizer", stage="structure", output_model=Draft)
 
@@ -56,4 +57,5 @@ def run(draft: Draft, job: dict, instructions: str = "", prompt_version: int | N
         "structure_template": "\n".join(f"- {h}" for h in template["required_headings"]) + "\n" + template["guidance"],
         "draft_json": draft.model_dump_json(indent=1), "instructions": instructions or "No extra instructions.",
     }
-    return run_agent(SPEC, variables, lambda: mock_structure(draft, job["content_type"]), prompt_version)
+    return run_agent(SPEC, variables, lambda: mock_structure(draft, job["content_type"]), prompt_version,
+                     known_source_ids=set(citations(draft_to_markdown(draft))))

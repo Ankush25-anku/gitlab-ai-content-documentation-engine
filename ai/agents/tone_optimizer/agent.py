@@ -5,7 +5,7 @@ from ai.agents.base import AgentResult, AgentSpec, run_agent
 from ai.prompts.loader import channel_for, tone_rules
 from ai.retrieval.knowledge import glossary_prompt_text, glossary_terms, marketing_words
 from ai.schemas import Draft
-from ai.text_utils import CITATION_RE, NEEDS_SOURCE_RE
+from ai.text_utils import CITATION_RE, NEEDS_SOURCE_RE, citations, draft_to_markdown
 
 SPEC = AgentSpec(name="tone_optimizer", stage="tone", output_model=Draft)
 
@@ -80,4 +80,5 @@ def run(draft: Draft, job: dict, instructions: str = "", prompt_version: int | N
         "glossary_terms": glossary_prompt_text(), "draft_json": draft.model_dump_json(indent=1),
         "instructions": instructions or "No extra instructions.",
     }
-    return run_agent(SPEC, variables, lambda: mock_tone(draft, channel, instructions), prompt_version)
+    return run_agent(SPEC, variables, lambda: mock_tone(draft, channel, instructions), prompt_version,
+                     known_source_ids=set(citations(draft_to_markdown(draft))))

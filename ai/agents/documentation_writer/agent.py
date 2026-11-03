@@ -159,4 +159,5 @@ def run(pack: ContextPack, sources: list[SourceRef], job: dict, prompt_version: 
         "tone_rules": " ".join(tone_rules(channel)), "glossary_terms": glossary_prompt_text(),
         "facts_json": json.dumps(facts, indent=1), "gaps": "; ".join(pack.gaps + pack.conflicts) or "none",
     }
-    return run_agent(SPEC, variables, lambda: mock_draft(pack, sources, job, version), version)
+    return run_agent(SPEC, variables, lambda: mock_draft(pack, sources, job, version), version,
+                     known_source_ids={s.id for s in sources})

@@ -69,7 +69,7 @@ Full details: [docs/architecture.md](docs/architecture.md) · state machine: [do
 | # | Agent | Input | Output (schema) | Notes |
 |---|---|---|---|---|
 | 1 | Context Reader | Job inputs + retrieved KB chunks | `ContextPack`: facts with source ids, gaps, blocking gaps, conflicts, terminology | Blocking gaps stop the job in `NEEDS_INPUT`. Parses diffs and OpenAPI specs into facts. Ignores instruction-like text. |
-| 2 | Documentation Writer | ContextPack + template + tone + glossary | `Draft` with `[S#]` citations | Writes `[NEEDS SOURCE: …]` rather than inventing. Prompt v1 and v2 kept for comparison. |
+| 2 | Documentation Writer | ContextPack + template + tone + glossary | `Draft` with `[S#]` citations | Writes `[NEEDS SOURCE: …]` rather than inventing. Prompts v1–v3 kept for comparison (v3: one source per bracket, `[S1] [S2]`). |
 | 3 | Technical Reviewer | Draft + sources | `TechReviewOutput`: verdict per claim, risk flags, reviewer questions, corrected citations | Never silently deletes; unsupported claims block approval. |
 | 4 | Tone Optimizer | Draft + channel tone rules + glossary | `Draft` + change log | Protects code, citations and markers; fixes terminology ("pull request" → "merge request"). |
 | 5 | Structure Optimizer | Draft + content-type template | `Draft` + change log | Enforces required headings and order, numbered steps, summary length. |

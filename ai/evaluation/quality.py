@@ -2,11 +2,10 @@
 
 These scores are shown as badges in the Draft Editor and aggregated on the dashboard.
 """
-import re
-
 from ai.prompts.loader import content_type_template
 from ai.schemas import ClaimCheck, ContextPack, Draft, QualityScores, SourceRef
-from ai.text_utils import CITATION_RE, NEEDS_SOURCE_RE, citations, draft_to_markdown, split_sentences, word_count
+from ai.text_utils import (CITATION_RE, NEEDS_SOURCE_RE, citations, draft_to_markdown, split_sentences,
+                           strip_citations, word_count)
 
 
 def score_draft(draft: Draft, pack: ContextPack | None, sources: list[SourceRef],
@@ -49,5 +48,5 @@ def score_draft(draft: Draft, pack: ContextPack | None, sources: list[SourceRef]
 
 
 def strip_internal_markers(md: str) -> str:
-    """Remove citation markers for publication while keeping the text."""
-    return re.sub(r"\s?\[S\d+\]", "", md)
+    """Remove citation markers (single or grouped) for publication while keeping the text."""
+    return strip_citations(md)
