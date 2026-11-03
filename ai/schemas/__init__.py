@@ -3,6 +3,7 @@ from ai.schemas.content import (  # noqa: F401
     ContentType,
     ContextPack,
     Draft,
+    FrontMatter,
     PublishPackage,
     QualityScores,
     ReviewReport,

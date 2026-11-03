@@ -8,7 +8,7 @@ import hashlib
 import json
 from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from ai.agents import base as agent_base
@@ -43,10 +43,21 @@ def job_dict(job: ContentJob) -> dict:
 
 
 def set_status(db: Session, job: ContentJob, new: str, stage: str | None = None, actor: str | None = None,
-               check: bool = True) -> None:
+               check: bool = True, exclusive: bool = False) -> None:
+    """`exclusive=True` claims the job: the move only happens if no other request changed its status first
+    (one compare-and-set UPDATE), so two concurrent calls cannot both start the same work."""
+    if exclusive and new == job.status:
+        raise AppError("INVALID_STATE", f"The job is already {new}; wait for the running step to finish.", job.id)
     if check and new != job.status:
         assert_transition(job.id, job.status, new)
     old = job.status
+    if exclusive:
+        claimed = db.execute(update(ContentJob).where(ContentJob.id == job.id, ContentJob.status == old)
+                             .values(status=new)).rowcount
+        if claimed == 0:
+            db.rollback()
+            raise AppError("INVALID_STATE", f"Another request already changed this job (now {new} or later); "
+                           "refresh and try again.", job.id)
     job.status = new
     if stage is not None:
         job.current_stage = stage
@@ -126,7 +137,8 @@ def _fail(db: Session, job: ContentJob, stage: str, exc: Exception) -> None:
     db.rollback()
     db.add(AgentRun(job_id=job.id, stage=stage, model="-", status="failed", error=str(exc)[:2000],
                     finished_at=datetime.now(timezone.utc)))
-    job.last_error = {"code": "MODEL_FAILED", "stage": stage, "message": str(exc)[:500], "retryable": True}
+    job.last_error = {"code": "MODEL_FAILED", "stage": stage, "message": str(exc)[:500],
+                      "retryable": getattr(exc, "retryable", True)}
     set_status(db, job, "FAILED", stage=stage, check=False)
     audit(db, "workflow.failed", None, job.id, stage=stage, error=str(exc)[:300])
     db.commit()
@@ -266,7 +278,7 @@ def prepare_publish(db: Session, job: ContentJob, actor: str) -> PublishPackage:
     approver_ids = db.scalars(select(ReviewAction.reviewer_id).where(
         ReviewAction.draft_id == row.id, ReviewAction.action == "approve")).all()
     approvers = [p.name for p in (db.get(Profile, a) for a in set(approver_ids)) if p]
-    set_status(db, job, "PUBLISH_PREPARING", stage="publish_prep", actor=actor)
+    set_status(db, job, "PUBLISH_PREPARING", stage="publish_prep", actor=actor, exclusive=True)
     try:
         with _busy_notice(db, job, "publish_prep"):
             result = publishing_coordinator.run(Draft.model_validate(row.draft_json), sources_of(pack_row),

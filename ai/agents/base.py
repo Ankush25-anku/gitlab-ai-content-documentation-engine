@@ -37,6 +37,10 @@ _RETRY_AFTER = (re.compile(r"retryDelay['\"]?\s*:\s*['\"]?(\d+(?:\.\d+)?)s"),
                 re.compile(r"retry in (\d+(?:\.\d+)?)\s*s", re.IGNORECASE))
 # A longer suggested wait usually means the daily quota is gone: move to the fallback model instead.
 MAX_SERVER_RETRY_DELAY = 90
+# Requests the API rejects as invalid (bad schema, unknown model, bad key) fail the same way every time.
+_PERMANENT_CODES = {400, 401, 403, 404}
+_PERMANENT_TEXT = re.compile(r"INVALID_ARGUMENT|not supported in the Gemini API|PERMISSION_DENIED|UNAUTHENTICATED|"
+                             r"API key not valid|API_KEY_INVALID|is not found for API version", re.IGNORECASE)
 
 # The orchestrator registers a callback here to show "AI service busy" on the job while we wait.
 _on_busy: ContextVar[Callable[[str], None] | None] = ContextVar("on_model_busy", default=None)
@@ -44,6 +48,12 @@ _on_busy: ContextVar[Callable[[str], None] | None] = ContextVar("on_model_busy",
 
 class AgentError(Exception):
     """Raised when the model fails or returns output that does not validate."""
+    retryable = True
+
+
+class PermanentAgentError(AgentError):
+    """The API rejected the request itself; retrying the same request cannot succeed."""
+    retryable = False
 
 
 @contextmanager
@@ -72,6 +82,21 @@ def _is_busy(exc: BaseException) -> bool:
             if getattr(cur, attr, None) in _BUSY_CODES:
                 return True
         if _BUSY_TEXT.search(str(cur)):
+            return True
+        cur = cur.__cause__ or cur.__context__
+    return False
+
+
+def _is_permanent(exc: BaseException) -> bool:
+    """True for 400/401/403/404-style rejections (e.g. a schema Gemini does not support), including wrapped ones."""
+    seen: set[int] = set()
+    cur: BaseException | None = exc
+    while cur is not None and id(cur) not in seen:
+        seen.add(id(cur))
+        for attr in ("status_code", "code"):
+            if getattr(cur, attr, None) in _PERMANENT_CODES:
+                return True
+        if _PERMANENT_TEXT.search(str(cur)):
             return True
         cur = cur.__cause__ or cur.__context__
     return False
@@ -228,6 +253,7 @@ def _run_crewai(spec: AgentSpec, prompt: PromptTemplate, system: str, user: str,
 def _call_with_retries(name: str, models: list[str], attempt: Callable[[str], AgentResult],
                        max_retries: int) -> AgentResult:
     """Busy errors (503/429): retry with BUSY_RETRY_DELAYS, then move to the next model.
+    Rejected requests (400/401/403/404): fail at once with PermanentAgentError.
     Other errors (bad output, timeouts): retry up to `max_retries` times on the same model."""
     calls = 0
     last_error: Exception | None = None
@@ -241,7 +267,13 @@ def _call_with_retries(name: str, models: list[str], attempt: Callable[[str], Ag
                 return result
             except Exception as exc:  # noqa: BLE001 - surfaced as MODEL_FAILED
                 last_error = exc
-                if not _is_busy(exc):
+                busy = _is_busy(exc)
+                if not busy and _is_permanent(exc):
+                    raise PermanentAgentError(
+                        f"{name} failed: the AI service rejected the request as invalid, so it was not retried. "
+                        f"Check the output schema, model name ({model}) and API key. Details: {str(exc)[:300]}"
+                    ) from exc
+                if not busy:
                     if other_retries >= max_retries:
                         raise AgentError(f"{name} failed after retries: {exc}") from exc
                     other_retries += 1

@@ -43,6 +43,9 @@ def _package(db: Session, job, draft: Draft, user: Profile) -> PublishPackage:
                      .order_by(AgentRun.started_at.desc())).first()
     if run and job.status in ("PUBLISH_READY", "EXPORTED") and run.started_at >= draft.created_at:
         return PublishPackage.model_validate(run.output_json)
+    if job.status == "PUBLISH_PREPARING":  # e.g. a double click; prepare_publish also guards the race itself
+        raise AppError("INVALID_STATE", "Publishing metadata is already being prepared for this job. "
+                       "Wait for it to finish.", job.id)
     return runner.prepare_publish(db, job, user.id)
 
 
