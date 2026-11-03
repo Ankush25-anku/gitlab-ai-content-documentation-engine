@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     llm_model_draft: str = "gemini/gemini-flash-latest"
     llm_model_review: str = "gemini/gemini-flash-latest"
+    gemini_fallback_model: str = ""  # used when the main model stays busy (503/429); empty = no fallback
     embedding_provider: str = "hash"  # "hash" (offline) or "gemini"
     embedding_model: str = "gemini-embedding-001"
     embedding_dim: int = 768

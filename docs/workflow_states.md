@@ -46,6 +46,8 @@ stateDiagram-v2
 | `EXPORTED` | Published as Markdown, CMS JSON or merge request | – |
 | `FAILED` | A stage failed after retries; `last_error` explains | Creator retries |
 
+While a stage is running, `last_error.code = "MODEL_BUSY"` is a notice, not a failure: Gemini returned 503 or 429 and the agent is waiting to retry (2s, 4s, 8s, 16s), then switches to `GEMINI_FALLBACK_MODEL`. Each retry is audited as `workflow.model_busy`, and the next status change clears the notice. If both models stay busy, the stage moves to `FAILED` with `MODEL_FAILED`.
+
 ## Stage outputs
 
 | Stage | Agent | Output schema | New draft version? |

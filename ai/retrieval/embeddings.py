@@ -7,11 +7,14 @@
 """
 import hashlib
 import math
+import time
 
 import httpx
 
+from ai.agents.base import BUSY_RETRY_DELAYS
 from ai.text_utils import tokens
 from backend.config import get_settings
+from backend.services.audit import log
 
 
 def _hash_embed(text: str, dim: int) -> list[float]:
@@ -30,7 +33,12 @@ def _gemini_embed(texts: list[str], task: str) -> list[list[float]]:
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{s.embedding_model}:batchEmbedContents"
     body = {"requests": [{"model": f"models/{s.embedding_model}", "content": {"parts": [{"text": t[:8000]}]},
                           "taskType": task, "outputDimensionality": s.embedding_dim} for t in texts]}
-    resp = httpx.post(url, json=body, headers={"x-goog-api-key": s.gemini_api_key}, timeout=60)
+    for delay in (*BUSY_RETRY_DELAYS, None):
+        resp = httpx.post(url, json=body, headers={"x-goog-api-key": s.gemini_api_key}, timeout=60)
+        if resp.status_code not in (429, 503) or delay is None:
+            break
+        log.warning("embeddings.busy", status=resp.status_code, retry_in_s=delay)
+        time.sleep(delay)
     resp.raise_for_status()
     vectors = [e["values"] for e in resp.json()["embeddings"]]
     out = []

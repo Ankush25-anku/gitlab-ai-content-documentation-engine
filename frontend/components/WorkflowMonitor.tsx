@@ -24,6 +24,11 @@ export default function WorkflowMonitor({ job, onChange }: { job: JobDetail; onC
         <StageRail status={job.status} current={job.current_stage} runs={job.runs} onSelect={setSelected} selected={selected} />
       </div>
 
+      {job.status !== "FAILED" && job.last_error?.code === "MODEL_BUSY" && (
+        <p role="status" aria-live="polite" className="mt-4 rounded-md border border-warn/30 bg-warn-soft px-4 py-3 text-sm text-warn">
+          <strong>{job.last_error.message}</strong> The {job.last_error.stage} stage will continue automatically.
+        </p>
+      )}
       {job.status === "FAILED" && job.last_error && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-bad/30 bg-bad-soft px-4 py-3 text-sm">
           <p className="text-bad"><strong>{job.last_error.stage} stage failed.</strong> {job.last_error.message} Earlier outputs are kept.</p>
