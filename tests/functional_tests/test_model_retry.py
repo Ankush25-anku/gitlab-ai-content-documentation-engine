@@ -89,6 +89,58 @@ def test_other_errors_keep_normal_retries_and_skip_fallback(sleeps):
     assert calls == ["gemini/main"] * 3
 
 
+QUOTA_429 = ("429 RESOURCE_EXHAUSTED. {'error': {'code': 429, 'message': 'You exceeded your current quota. "
+             "Quota limit: 5 per minute. Please retry in 13.2s.', 'status': 'RESOURCE_EXHAUSTED', 'details': "
+             "[{'@type': 'type.googleapis.com/google.rpc.RetryInfo', 'retryDelay': '13s'}]}}")
+
+
+def test_server_retry_delay_is_read_from_429():
+    assert base._retry_after(FakeGeminiError(QUOTA_429, code=429)) == 13
+    assert base._retry_after(FakeGeminiError("Quota exceeded. Please retry in 7.5s.")) == 7.5
+    wrapped = RuntimeError("Google Gemini API error")
+    wrapped.__cause__ = FakeGeminiError("rate limited", code=429)
+    wrapped.__cause__.details = {"error": {"details": [{"retryDelay": "21s"}]}}
+    assert base._retry_after(wrapped) == 21
+    assert base._retry_after(FakeGeminiError("503 UNAVAILABLE", code=503)) is None
+
+
+def test_429_waits_for_the_server_suggested_delay(sleeps):
+    calls, notices = [], []
+
+    def attempt(model):
+        calls.append(model)
+        if len(calls) == 1:
+            raise FakeGeminiError(QUOTA_429, code=429)
+        return _result(model)
+
+    with base.busy_notifications(notices.append):
+        base._call_with_retries("documentation_writer", ["gemini/main"], attempt, max_retries=2)
+    assert sleeps == [14]
+    assert notices == ["Rate limit reached, continuing in 14s (retry 1 of 4)…"]
+
+
+def test_long_server_delay_skips_to_fallback(sleeps):
+    def attempt(model):
+        if model == "gemini/main":
+            raise FakeGeminiError("Daily quota exceeded. Please retry in 3600s.", code=429)
+        return _result(model)
+
+    result = base._call_with_retries("tone_optimizer", ["gemini/main", "gemini/lite"], attempt, max_retries=2)
+    assert result.model == "gemini/lite" and sleeps == []
+
+
+def test_rate_limiter_spaces_calls_evenly(monkeypatch, sleeps):
+    monkeypatch.setattr(base.time, "monotonic", lambda: 100.0)  # three calls arrive at the same moment
+    limiter, notices = base._RateLimiter(), []
+    with base.busy_notifications(notices.append):
+        for _ in range(3):
+            limiter.wait(per_minute=4)
+    assert sleeps == [15, 30]
+    assert notices[-1] == "Pacing requests (4 per minute), continuing in 30s…"
+    limiter.wait(per_minute=0)  # 0 turns pacing off
+    assert sleeps == [15, 30]
+
+
 def test_fallback_model_name_gets_provider_prefix():
     assert base._with_provider("gemini-2.5-flash-lite") == "gemini/gemini-2.5-flash-lite"
     assert base._with_provider("gemini/gemini-2.5-flash-lite") == "gemini/gemini-2.5-flash-lite"

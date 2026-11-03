@@ -13,7 +13,9 @@ rerun any single stage.
 from __future__ import annotations
 
 import json
+import math
 import re
+import threading
 import time
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -30,6 +32,11 @@ BUSY_RETRY_DELAYS = (2, 4, 8, 16)
 _BUSY_CODES = {429, 503}
 _BUSY_TEXT = re.compile(r"\b(429|503)\b|UNAVAILABLE|RESOURCE_EXHAUSTED|high demand|overloaded|rate.?limit",
                         re.IGNORECASE)
+# 429 bodies carry the wait Google wants: RetryInfo {"retryDelay": "13s"} or "Please retry in 13.2s."
+_RETRY_AFTER = (re.compile(r"retryDelay['\"]?\s*:\s*['\"]?(\d+(?:\.\d+)?)s"),
+                re.compile(r"retry in (\d+(?:\.\d+)?)\s*s", re.IGNORECASE))
+# A longer suggested wait usually means the daily quota is gone: move to the fallback model instead.
+MAX_SERVER_RETRY_DELAY = 90
 
 # The orchestrator registers a callback here to show "AI service busy" on the job while we wait.
 _on_busy: ContextVar[Callable[[str], None] | None] = ContextVar("on_model_busy", default=None)
@@ -70,8 +77,63 @@ def _is_busy(exc: BaseException) -> bool:
     return False
 
 
+def _retry_after(exc: BaseException) -> float | None:
+    """The retry delay the server suggested in a 429 response, in seconds, if any."""
+    seen: set[int] = set()
+    cur: BaseException | None = exc
+    while cur is not None and id(cur) not in seen:
+        seen.add(id(cur))
+        text = f"{cur} {getattr(cur, 'details', '')}"
+        for pattern in _RETRY_AFTER:  # structured RetryInfo first, then the human-readable hint
+            match = pattern.search(text)
+            if match:
+                return float(match.group(1))
+        cur = cur.__cause__ or cur.__context__
+    return None
+
+
 def _with_provider(model: str) -> str:
     return model if "/" in model else f"gemini/{model}"
+
+
+class _RateLimiter:
+    """Hands out evenly spaced request slots (60 / per_minute seconds apart) to every thread in the process."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._next_slot = 0.0
+
+    def wait(self, per_minute: int) -> None:
+        if per_minute <= 0:
+            return
+        with self._lock:
+            now = time.monotonic()
+            slot = max(now, self._next_slot)
+            self._next_slot = slot + 60 / per_minute
+        delay = slot - now
+        if delay >= 2:
+            _notify_busy(f"Pacing requests ({per_minute} per minute), continuing in {math.ceil(delay)}s…")
+        if delay > 0:
+            time.sleep(delay)
+
+
+_limiter = _RateLimiter()
+_hook_lock = threading.Lock()
+_hook_installed = False
+
+
+def _pace_llm_call(_context: Any) -> None:
+    """CrewAI before_llm_call hook: runs once per real request, including CrewAI's own internal calls."""
+    _limiter.wait(get_settings().llm_requests_per_minute)
+
+
+def _install_rate_limit_hook() -> None:
+    global _hook_installed
+    with _hook_lock:
+        if not _hook_installed:
+            from crewai.hooks import register_before_llm_call_hook
+            register_before_llm_call_hook(_pace_llm_call)
+            _hook_installed = True
 
 
 @dataclass
@@ -127,14 +189,17 @@ def _run_crewai(spec: AgentSpec, prompt: PromptTemplate, system: str, user: str,
         raise AgentError("crewai is not installed; pip install -r requirements-ai.txt") from exc
 
     schema_hint = json.dumps(spec.output_model.model_json_schema())
+    _install_rate_limit_hook()
 
     def attempt(model: str) -> AgentResult:
+        # The Gemini provider and google-genai make a single attempt per call; retries live in
+        # _call_with_retries only. max_retry_limit=0 stops CrewAI re-running the task on errors.
         llm = LLM(model=model, api_key=settings.gemini_api_key or None, temperature=0.2)
         agent = Agent(
             role=prompt.render_field("role", **variables),
             goal=prompt.render_field("goal", **variables),
             backstory=prompt.render_field("backstory", **variables) or prompt.role,
-            llm=llm, allow_delegation=False, verbose=False, max_iter=3,
+            llm=llm, allow_delegation=False, verbose=False, max_iter=1, max_retry_limit=0,
         )
         # Prompts are fully rendered here; kickoff() is called without inputs so CrewAI does not
         # try to interpolate the JSON braces inside the sources.
@@ -184,10 +249,17 @@ def _call_with_retries(name: str, models: list[str], attempt: Callable[[str], Ag
                     continue
                 if busy_retries >= len(BUSY_RETRY_DELAYS):
                     break
-                delay = BUSY_RETRY_DELAYS[busy_retries]
+                suggested = _retry_after(exc)
+                if suggested is not None and suggested > MAX_SERVER_RETRY_DELAY:
+                    break
                 busy_retries += 1
-                _notify_busy(f"AI service busy, retrying in {delay}s "
-                             f"(retry {busy_retries} of {len(BUSY_RETRY_DELAYS)})…")
+                progress = f"(retry {busy_retries} of {len(BUSY_RETRY_DELAYS)})…"
+                if suggested is not None:
+                    delay = suggested + 1
+                    _notify_busy(f"Rate limit reached, continuing in {math.ceil(delay)}s {progress}")
+                else:
+                    delay = BUSY_RETRY_DELAYS[busy_retries - 1]
+                    _notify_busy(f"AI service busy, retrying in {delay}s {progress}")
                 time.sleep(delay)
         if i + 1 < len(models):
             _notify_busy(f"AI service still busy; switching to backup model {models[i + 1]}…")
