@@ -20,7 +20,7 @@ Every error has the same shape:
 | `INVALID_STATE` | 409 | Action not allowed in the job's current status |
 | `CONTEXT_INSUFFICIENT` | 409 | Blocking gaps in the context pack |
 | `UNSUPPORTED_CLAIMS` | 409 | Approval with unresolved unsupported claims |
-| `MODEL_FAILED` | 502 | LLM failed after retries (retryable) |
+| `MODEL_FAILED` | 502 | LLM failed after retries (retryable). If the API rejected the request itself (400/401/403/404, e.g. an unsupported schema or bad key), the stage fails at once without retries and the job's `last_error.retryable` is `false` |
 | `EXPORT_FAILED` | 502 | GitLab API error or GitLab not configured (retryable) |
 | `RETRIEVAL_FAILED` | – | Non-fatal: recorded as a context warning, drafting continues |
 
@@ -41,7 +41,7 @@ Every error has the same shape:
 | GET | `/api/drafts/{draft_id}/versions?compare=a,b` | owner, staff | Version list and unified diff |
 | POST | `/api/drafts/{draft_id}/review` | reviewers (owner may `edit`/`comment`) | `action`: approve, reject, edit, request_revision, comment, resolve_claim |
 | POST | `/api/drafts/{draft_id}/refine` | owner, reviewers | Rerun selected stages: `{stages: ["tone"], instructions?, prompt_versions?}`. Returns 202 |
-| POST | `/api/publish/prepare` | publisher, doc_lead, tech_reviewer | Run the Publishing Coordinator; returns package + Markdown preview |
+| POST | `/api/publish/prepare` | publisher, doc_lead, tech_reviewer | Run the Publishing Coordinator; returns package + Markdown preview. `409 INVALID_STATE` while a prepare is already running for the job |
 | POST | `/api/publish/export` | publisher, doc_lead | `{draft_id, format: markdown \| cms_json \| gitlab_mr}` |
 | GET | `/api/publish/exports` | publisher, doc_lead, tech_reviewer | Recent exports |
 | GET | `/api/metrics` | any | Throughput, cycle times, rework, latency, quality, prompt comparison |

@@ -3,7 +3,7 @@ import json
 from datetime import date
 
 from ai.agents.base import AgentResult, AgentSpec, run_agent
-from ai.schemas import Draft, PublishPackage, SourceRef
+from ai.schemas import Draft, FrontMatter, PublishPackage, SourceRef
 from ai.text_utils import slugify
 
 SPEC = AgentSpec(name="publishing_coordinator", stage="publish_prep", output_model=PublishPackage)
@@ -18,12 +18,12 @@ def mock_publish(draft: Draft, sources: list[SourceRef], job: dict, owner: str, 
     used = sorted({sid for s in draft.sections for sid in s.source_ids}, key=lambda x: int(x[1:]))
     by_id = {s.id: s for s in sources}
     source_lines = [f"- [{sid}] {by_id[sid].title} (`{by_id[sid].chunk_id}`)" for sid in used if sid in by_id]
-    front = {
-        "title": draft.title, "content_type": job["content_type"], "stage": job["product_area"],
-        "group": "Technical Writing", "owner": owner, "last_reviewed": date.today().isoformat(),
-        "info": "Generated with the AI Content & Documentation Engine and approved by a human reviewer.",
-        "sources": [by_id[sid].chunk_id for sid in used if sid in by_id],
-    }
+    front = FrontMatter(
+        title=draft.title, content_type=job["content_type"], stage=job["product_area"],
+        group="Technical Writing", owner=owner, last_reviewed=date.today().isoformat(),
+        info="Generated with the AI Content & Documentation Engine and approved by a human reviewer.",
+        sources=[by_id[sid].chunk_id for sid in used if sid in by_id],
+    )
     description = "\n".join([
         f"## What does this MR do?\n\nAdds the {job['content_type'].replace('_', ' ')} **{draft.title}**.",
         f"\n{draft.summary}",

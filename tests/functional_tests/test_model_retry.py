@@ -141,6 +141,44 @@ def test_rate_limiter_spaces_calls_evenly(monkeypatch, sleeps):
     assert sleeps == [15, 30]
 
 
+SCHEMA_400 = "400 INVALID_ARGUMENT. additionalProperties is not supported in the Gemini API."
+
+
+def test_rejected_request_fails_at_once_without_retry_or_fallback(sleeps):
+    calls = []
+
+    def attempt(model):
+        calls.append(model)
+        raise FakeGeminiError(SCHEMA_400, code=400)
+
+    with pytest.raises(base.PermanentAgentError, match="rejected the request as invalid, so it was not retried") as err:
+        base._call_with_retries("publishing_coordinator", ["gemini/main", "gemini/lite"], attempt, max_retries=2)
+    assert calls == ["gemini/main"] and sleeps == []
+    assert err.value.retryable is False and "additionalProperties" in str(err.value)
+
+
+def test_permanent_errors_are_recognised_when_wrapped():
+    wrapped = RuntimeError("Google Gemini API call failed")
+    wrapped.__cause__ = ValueError("additionalProperties is not supported in the Gemini API.")
+    assert base._is_permanent(wrapped)
+    assert base._is_permanent(FakeGeminiError("API key not valid. Please pass a valid API key."))
+    assert not base._is_permanent(FakeGeminiError("503 UNAVAILABLE", code=503))
+    assert not base._is_permanent(ValueError("Invalid JSON: expected '}'"))  # bad model output is still retried
+
+
+def test_permanent_failure_marks_the_job_not_retryable(client, monkeypatch):
+    from backend.orchestration import runner
+
+    def rejected(*args, **kwargs):
+        raise base.PermanentAgentError("tone_optimizer failed: the AI service rejected the request as invalid")
+
+    monkeypatch.setattr(runner.tone_optimizer, "run", rejected)
+    job = create_and_run(client)
+    assert job["status"] == "FAILED"
+    assert job["last_error"]["stage"] == "tone" and job["last_error"]["retryable"] is False
+    assert "rejected the request as invalid" in job["last_error"]["message"]
+
+
 def test_fallback_model_name_gets_provider_prefix():
     assert base._with_provider("gemini-2.5-flash-lite") == "gemini/gemini-2.5-flash-lite"
     assert base._with_provider("gemini/gemini-2.5-flash-lite") == "gemini/gemini-2.5-flash-lite"

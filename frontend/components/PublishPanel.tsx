@@ -7,7 +7,8 @@ import { useMe } from "./Shell";
 import { Button, ErrorNote } from "./ui";
 
 interface Prepared { package: { file_path: string; mr_title: string; mr_description: string; labels: string[];
-  front_matter: Record<string, unknown>; approved_by: string[] }; markdown_preview: string }
+  front_matter: { title: string; content_type: string; stage: string; group: string; owner: string;
+    last_reviewed: string; info: string; sources: string[] }; approved_by: string[] }; markdown_preview: string }
 interface AuditRow { id: string; actor_id: string | null; event: string; details: Record<string, unknown>; created_at: string }
 
 const FORMATS = [
@@ -22,6 +23,7 @@ export default function PublishPanel({ job, onChange }: { job: JobDetail; onChan
   const approved = draft?.review_state === "approved" && ["APPROVED", "PUBLISH_READY", "EXPORTED", "PUBLISH_PREPARING"].includes(job.status);
   const canPublish = !!me && ["publisher", "doc_lead", "admin"].includes(me.role);
   const [prep, setPrep] = useState<Prepared | null>(null);
+  const [preparing, setPreparing] = useState(false);
   const [format, setFormat] = useState("markdown");
   const [result, setResult] = useState<Record<string, any> | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -33,9 +35,11 @@ export default function PublishPanel({ job, onChange }: { job: JobDetail; onChan
   }, [me, job.id, job.updated_at]);
 
   async function prepare() {
-    setError(null);
+    if (preparing) return;
+    setError(null); setPreparing(true);
     try { setPrep(await api<Prepared>("/api/publish/prepare", { method: "POST", json: { draft_id: draft!.id } })); onChange(); }
     catch (e) { setError((e as Error).message); }
+    finally { setPreparing(false); }
   }
   async function exportIt() {
     setError(null); setResult(null);
@@ -61,7 +65,12 @@ export default function PublishPanel({ job, onChange }: { job: JobDetail; onChan
         ) : (
           <>
             <p className="mt-1 text-sm text-ink-soft">Approved. The Publishing Coordinator prepares metadata, file path and merge request text.</p>
-            {!prep && <Button className="mt-4" onClick={prepare} disabled={!canPublish && me?.role !== "tech_reviewer"}>Prepare for publishing</Button>}
+            {!prep && (
+              <Button className="mt-4" onClick={prepare} aria-busy={preparing}
+                disabled={preparing || job.status === "PUBLISH_PREPARING" || (!canPublish && me?.role !== "tech_reviewer")}>
+                {preparing || job.status === "PUBLISH_PREPARING" ? "Preparing…" : "Prepare for publishing"}
+              </Button>
+            )}
             {prep && (
               <div className="mt-4 space-y-4">
                 <dl className="grid grid-cols-[120px_1fr] gap-y-1 text-sm">

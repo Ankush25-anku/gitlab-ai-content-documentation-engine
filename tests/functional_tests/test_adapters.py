@@ -4,11 +4,12 @@ import json
 import httpx
 import pytest
 
-from ai.schemas import Draft, PublishPackage, Section
+from ai.schemas import Draft, FrontMatter, PublishPackage, Section
 
 
 def _package() -> PublishPackage:
-    return PublishPackage(slug="cache-stats", file_path="doc/api/cache-stats.md", front_matter={"title": "x"},
+    front = FrontMatter(title="x", content_type="api_reference", stage="Verify", owner="Priya", last_reviewed="2026-11-03")
+    return PublishPackage(slug="cache-stats", file_path="doc/api/cache-stats.md", front_matter=front,
                           mr_title="API docs: Cache stats", mr_description="desc", labels=["documentation"],
                           target_channel="api_reference", owner="Priya", approved_by=["Arjun"])
 

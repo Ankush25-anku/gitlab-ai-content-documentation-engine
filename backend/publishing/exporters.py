@@ -21,7 +21,7 @@ def render_markdown(draft: Draft, package: PublishPackage, sources: list[SourceR
         body = strip_internal_markers(body)
     # The H1 comes from front matter in GitLab docs, so drop the duplicate title line.
     body = body.split("\n", 1)[1].lstrip() if body.startswith("# ") else body
-    front = yaml.safe_dump(package.front_matter, sort_keys=False, allow_unicode=True).strip()
+    front = yaml.safe_dump(package.front_matter.model_dump(), sort_keys=False, allow_unicode=True).strip()
     footer = ""
     if keep_citations and used:
         footer = "\n## Sources\n\n" + "\n".join(f"- [{u}] {by_id[u].title}" for u in used if u in by_id) + "\n"
@@ -38,11 +38,11 @@ def export_markdown(job_id: str, markdown: str, package: PublishPackage) -> str:
 def export_cms_json(draft: Draft, package: PublishPackage) -> dict:
     return {
         "slug": package.slug, "title": draft.title, "summary": strip_internal_markers(draft.summary),
-        "content_type": package.front_matter.get("content_type"), "channel": package.target_channel,
+        "content_type": package.front_matter.content_type, "channel": package.target_channel,
         "owner": package.owner, "approved_by": package.approved_by, "labels": package.labels,
         "blocks": [{"type": "section", "heading": s.heading, "markdown": strip_internal_markers(s.body_markdown)}
                    for s in draft.sections],
-        "metadata": package.front_matter,
+        "metadata": package.front_matter.model_dump(),
     }
 
 

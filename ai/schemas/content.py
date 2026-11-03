@@ -1,4 +1,7 @@
-"""Structured outputs for every agent stage. Agents must return JSON that validates against these."""
+"""Structured outputs for every agent stage. Agents must return JSON that validates against these.
+
+Keep every field typed: no `dict`, `dict[str, Any]` or `Any`. Those become `additionalProperties` in the JSON
+schema, which the Gemini API rejects (tests/ai_output_tests/test_schemas.py enforces this)."""
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -77,11 +80,23 @@ class TechReviewOutput(BaseModel):
     draft: Draft
 
 
+class FrontMatter(BaseModel):
+    """YAML front matter of the published page, in GitLab docs style."""
+    title: str
+    content_type: ContentType
+    stage: str = Field(description="Product stage or area, e.g. Verify")
+    group: str = "Technical Writing"
+    owner: str
+    last_reviewed: str = Field(description="ISO date, e.g. 2026-11-03")
+    info: str = ""
+    sources: list[str] = Field(default_factory=list, description="Chunk ids of the sources the page cites")
+
+
 class PublishPackage(BaseModel):
     """Output of the Publishing Coordinator."""
     slug: str
     file_path: str
-    front_matter: dict
+    front_matter: FrontMatter
     mr_title: str
     mr_description: str
     labels: list[str] = Field(default_factory=list)
